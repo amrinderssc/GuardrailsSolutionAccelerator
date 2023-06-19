@@ -85,7 +85,7 @@ function Get-HealthMonitoringStatus {
     #Health
     #
     $Comments=""
-    $uncompliantParameters=4
+    $compliantParameters=4
     $LAW=Get-AzOperationalInsightsWorkspace -Name $HealthLAWName -ResourceGroupName $HealthLAWRG
     if ($null -eq $LAW)
     {
@@ -98,7 +98,7 @@ function Get-HealthMonitoringStatus {
             -LAWName $LAW.Name
         if (($LinkedServices.value.properties.resourceId | Where-Object {$_ -match "automationAccounts"}).count -lt 1)
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawNoAutoAcct 
         }
         #2
@@ -106,7 +106,7 @@ function Get-HealthMonitoringStatus {
         $Retention=$LAW.retentionInDays
         if ($Retention -lt $RetentionDays)
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawRetentionHealthDays -f $RetentionDays
         }
         #3
@@ -114,20 +114,20 @@ function Get-HealthMonitoringStatus {
         $enabledSolutions=(Get-AzOperationalInsightsIntelligencePack -ResourceGroupName $LAW.ResourceGroupName -WorkspaceName $LAW.Name| Where-Object {$_.Enabled -eq "True"}).Name
         if ($enabledSolutions -notcontains "AgentHealthAssessment")
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawHealthNoSolutionFound # "Required solutions not present in the Health Log Analytics Workspace."
         }
         #4
         # add as per SSC request, github issue 
         if ($enabledSolutions -notcontains "Updates")
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawSolutionNotFound # "Required solutions not present in the Log Analytics Workspace."
         }
         #Tenant...No information on how to detect it.
         #Blueprint
     }
-    if ($uncompliantParameters -eq 0)
+    if ($compliantParameters -eq 4)
     {
         $IsCompliant=$true
         $Comments= $msgTable.logsAndMonitoringCompliantForHealth

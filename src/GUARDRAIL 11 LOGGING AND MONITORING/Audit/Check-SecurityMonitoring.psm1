@@ -100,7 +100,7 @@ function get-SecurityMonitoringStatus {
     $LAWName=$SecurityLAWResourceId.Split("/")[8]
     
     $IsCompliant=$false
-    $uncompliantParameters=7
+    $compliantParameters=6
     try{
         Select-AzSubscription -Subscription $Subscription -ErrorAction Stop | Out-Null
     }
@@ -134,45 +134,45 @@ function get-SecurityMonitoringStatus {
             -LAWName $LAWName
         if (($LinkedServices.value.properties.resourceId | Where-Object {$_ -match "automationAccounts"}).count -lt 1)
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawNoAutoAcct
         }
         # 2 -Test Retention Days
         $Retention=$LAW.retentionInDays
         if ($Retention -ne $LAWRetention)
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawRetentionSecDays -f $LAWRetention
         }
         # 3
         if (!(get-activitylogstatus -LAWResourceId $LAW.ResourceId)) {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawNoActivityLogs
         }
         # 4 - Tests for required Solutions
         $enabledSolutions=(Get-AzOperationalInsightsIntelligencePack -ResourceGroupName $LAW.ResourceGroupName -WorkspaceName $LAW.Name| Where-Object {$_.Enabled -eq "True"}).Name
         if ($enabledSolutions -notcontains "Updates" -or $enabledSolutions -notcontains "AntiMalware")
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawSolutionNotFound
         }
         # 5 - Tenant Diagnostics configuration. Needs Graph API...
         $tenantWS=get-tenantDiagnosticsSettings
         if ($SecurityLAWResourceId -notin $tenantWS.workspaceId)
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawNoTenantDiag
         }
         # 6 - Workspace is there but need to check if logs are enabled.
         $enabledLogs=(($tenantWS| Where-Object {$_.workspaceId -eq $SecurityLAWResourceId}).logs | Where-Object {$_.enabled -eq $true}).category
         if ("AuditLogs" -notin $enabledLogs -or "SignInLogs" -notin $enabledLogs)
         {
-            $uncompliantParameters--
+            $compliantParameters--
             $Comments+=$msgTable.lawMissingLogTypes
         }
         #Blueprint redirection
         # Sentinel, not sure how to detect this.
-        if ($uncompliantParameters -eq 0)
+        if ($compliantParameters -eq 6)
         {
             $IsCompliant=$true
             $Comments= $msgTable.logsAndMonitoringCompliantForSecurity
